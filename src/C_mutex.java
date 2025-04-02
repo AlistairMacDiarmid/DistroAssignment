@@ -1,11 +1,17 @@
 import java.net.*;
 import java.io.*;
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.Queue;
 
 public class C_mutex extends Thread {
     final C_buffer buffer;
     int returnPort;
     private ServerSocket returnSocket;
+    private static final String LOG_FILE = "distro_log.txt";
+
+    private final Queue<String[]> pendingRequests = new LinkedList<String[]>();
+
 
     /**
      * Constructor - initalises the mutex process
@@ -15,6 +21,16 @@ public class C_mutex extends Thread {
     public C_mutex(C_buffer b, int p) {
         buffer = b;
         returnPort = p;
+    }
+
+    private synchronized void logToFile(String message) {
+        try (FileWriter fw = new FileWriter(LOG_FILE, true);
+             BufferedWriter bw = new BufferedWriter(fw);
+             PrintWriter out = new PrintWriter(bw)) {
+            out.println(java.time.LocalDateTime.now() + " | " + message);
+        } catch (IOException e) {
+            System.err.println("Logging failed: " + e.getMessage());
+        }
     }
 
     /**
@@ -42,23 +58,23 @@ public class C_mutex extends Thread {
      * continuously process incoming requests and grants tokens
      * @throws IOException if I/O error occurs
      */
-    private void processRequests() throws IOException {
-        while(true){
-                synchronized (buffer){
-                    waitForRequests();
-                    String[] request = buffer.getRequest();
-                    if(isValidRequest(request)){
-                        String nodeHost = request[0];
-                        int nodePort = Integer.parseInt(request[1]);
-                        grantToken(nodeHost, nodePort);
-                        waitForReturnToken(nodeHost,nodePort);
-                    }else{
-                        System.err.println("C:mutex error: invalid request!\nContents: " + Arrays.toString(request));
-                    }
-
+    private void processRequests() throws IOException, InterruptedException {
+        while (true) {
+            String[] request;
+            synchronized (buffer) {
+                // Wait until at least one full request exists
+                while (buffer.size() < 2) {
+                    buffer.wait();  // Releases lock and waits
                 }
+                request = buffer.getRequest();
+            }  // Lock released here
+
+            if (isValidRequest(request)) {
+                grantToken(request[0], Integer.parseInt(request[1]));
+                waitForReturnToken(request[0], Integer.parseInt(request[1]));
             }
         }
+    }
 
     /**
      * waits fot the token to be returned by the node
@@ -71,6 +87,7 @@ public class C_mutex extends Thread {
             BufferedReader in = new BufferedReader(new InputStreamReader(returnConnection.getInputStream()));
             String response = in.readLine();
             if ("TOKEN_RETURNED".equals(response)) {
+                logToFile("COORDINATOR: TOKEN RETURNED by " + nodeHost + ":" + nodePort);
                 System.out.println("C:mutex - Token returned by " + nodeHost + ":" + nodePort);
             }
         } catch (IOException e) {
@@ -89,6 +106,7 @@ public class C_mutex extends Thread {
             Socket nodeSocket = new Socket(nodeHost, nodePort);
             PrintWriter out = new PrintWriter(nodeSocket.getOutputStream(), true);
             out.println("TOKEN_GRANTED");
+            logToFile("COORDINATOR: GRANTED token to " + nodeHost + ":" + nodePort);
             System.out.println("C:mutex - Token granted to " + nodeHost + ":" + nodePort);
         } catch (IOException e) {
             System.err.println("Error granting token to: " + nodeHost + ":" + nodePort);
@@ -119,64 +137,4 @@ public class C_mutex extends Thread {
     private boolean isValidRequest(String[] request) {
         return request!=null && request.length==2;
     }
-
-
-//    public void run() {
-//        try {
-//            ServerSocket returnSocket = new ServerSocket(returnPort);
-//            System.out.println("C:mutex - Waiting for token returns on port " + returnPort);
-
-//            while (true) {
-//                synchronized (buffer) {
-//                    while (buffer.size() < 2) {  // Wait until we have a valid request
-//                        System.out.println("C:mutex - Waiting for requests... Buffer size: " + buffer.size());
-//                        buffer.wait();
-//                    }
-//
-//                    // DEBUG: Print buffer contents before fetching the request
-//                    System.out.println("C:mutex - Buffer contents before fetching request: " + buffer.toString());
-//
-//                    // Fetch next request
-//                    String[] request = buffer.getRequest();
-//                    if (request != null && request.length == 2) {
-//                        String nodeHost = request[0];
-//                        int nodePort = Integer.parseInt(request[1]);
-//
-//                        System.out.println("C:mutex - Granting token to " + nodeHost + ":" + nodePort);
-//
-//                        try {
-//                            // Grant token to requesting node
-//                            Socket nodeSocket = new Socket(nodeHost, nodePort);
-//                            PrintWriter out = new PrintWriter(nodeSocket.getOutputStream(), true);
-//                            out.println("TOKEN_GRANTED");
-//                            nodeSocket.close();
-//                            System.out.println("C:mutex - Token granted to " + nodeHost + ":" + nodePort);
-//                        } catch (IOException e) {
-//                            System.err.println("Error granting token: " + e.getMessage());
-//                            continue;
-//                        }
-//
-//                        // Wait for token return
-//                        try {
-//                            Socket returnConnection = returnSocket.accept();
-//                            BufferedReader in = new BufferedReader(new InputStreamReader(returnConnection.getInputStream()));
-//                            String response = in.readLine();
-//                            if ("TOKEN_RETURNED".equals(response)) {
-//                                System.out.println("C:mutex - Token returned by " + nodeHost + ":" + nodePort);
-//                            }
-//                            returnConnection.close();
-//                        } catch (IOException e) {
-//                            System.err.println("Error waiting for token return: " + e.getMessage());
-//                        }
-//                    } else {
-//                        System.err.println("C:mutex ERROR: Retrieved request is invalid! Request contents: " + Arrays.toString(request));
-//                    }
-//                }
-//            }
-//        } catch (Exception e) {
-//            System.err.println("Mutex error: " + e.getMessage());
-//        }
-//    }
-
-
 }

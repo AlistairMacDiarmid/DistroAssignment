@@ -25,6 +25,8 @@ public class Node{
     String 	n_host_name; //hostname of node
     int     n_port; // post the node listens on
 
+	private static final String LOG_FILE = "distro_log.txt";
+
 	
 
 
@@ -35,6 +37,9 @@ public class Node{
 	 * @param sec the wait time in milliseconds before making a request
 	 */
 	public Node(String nam, int por, int sec){
+		//DEBUG
+		logToFile("NODE " + por + ": STARTING UP");
+
 		ra = new Random();
 		n_host_name = nam;
 		n_port = por;
@@ -50,12 +55,13 @@ public class Node{
             System.exit(1);
 		}
 
+
+		sleep(sec);
+
 		//infinite loop for distributed mutual exclusion execution
 		while(true){
 
-            //sleep for a random amount of time before making a request
-            sleep(sec);
-
+			sleep(sec);
             //send request to coordinator for entering the critical section
             sendRequest(c_host,c_request_port,n_host,n_port);
 
@@ -68,8 +74,21 @@ public class Node{
             //return the token to the coordinator after execution
             returnToken(s, c_host, c_return_port, pout, n_host, n_port);
 
+			sleep(3);
+
 
         }
+	}
+
+	private synchronized void logToFile(String message) {
+		try (FileWriter fw = new FileWriter(LOG_FILE, true);
+			 BufferedWriter bw = new BufferedWriter(fw);
+			 PrintWriter out = new PrintWriter(bw)) {
+			out.println(java.time.LocalDateTime.now() + " | " + message);
+			out.flush();
+		} catch (IOException e) {
+			System.err.println("Log failed: " + e.getMessage());
+		}
 	}
 
 	/**
@@ -87,6 +106,7 @@ public class Node{
 			pout = new PrintWriter(s.getOutputStream(), true);
 			pout.println("TOKEN_RETURNED"); // notify coordinator the token is returned
 			s.close();
+			logToFile("NODE " + n_port + ": RETURNING token to coordinator");
 			System.out.println("Node " + n_host + ":" + n_port + " sent token return to coordinator");
 		}catch(IOException e) {
 			System.out.println("Error returning token " + e);
@@ -100,9 +120,10 @@ public class Node{
 	 */
 	public void criticalSection(int sec){
 		System.out.println("Node " + n_host + ":" + n_port + " received token from coordinator");
-
+		logToFile("NODE " + n_port + ": ENTERING critical section");
 		System.out.println("Node " + n_port + ": ENTERING critical section");
 		sleep(sec); //simulate critical section work
+		logToFile("NODE " + n_port + ": LEAVING critical section");
 		System.out.println("Node " + n_port + ": LEAVING critical section");
 	}
 
@@ -170,7 +191,7 @@ public class Node{
 		
 		// validate the number of command-line arguments
 		if ((args.length < 1) || (args.length > 2)){
-		    System.out.print("Usage: Node [port number] [millisecs]");
+		    System.out.print("Usage: Node [port number] [seconds]");
 		    System.exit(1);
 		}
 		

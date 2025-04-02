@@ -1,3 +1,7 @@
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.*;
 
 public class Coordinator {
@@ -9,17 +13,39 @@ public class Coordinator {
 	private C_receiver receiver;
 	private C_mutex mutex;
 
+	private static final String LOG_FILE = "distro_log.txt";
+
+
 
 	/**
 	 * constructor - initalises the coordinator with optional request port.
 	 * @param port the port number for receiving requests (default is 7001)
 	 */
 	public Coordinator (int port) {
+
+		// Reset log file when coordinator starts
+		try (FileWriter fw = new FileWriter(LOG_FILE, false)) {
+			fw.write(""); // Truncate the file
+			logToFile("COORDINATOR STARTED | Port: " + port + " | Time: " + java.time.LocalDateTime.now());
+		} catch (IOException e) {
+			System.err.println("Failed to reset log file: " + e.getMessage());
+		}
+
 		this.requestPort = port;
 		this.buffer = new C_buffer();
 		this.receiver = new C_receiver(buffer, requestPort);
 		this.mutex = new C_mutex(buffer, returnPort);
     }
+
+	private synchronized void logToFile(String message) {
+		try (FileWriter fw = new FileWriter(LOG_FILE, true);
+			 BufferedWriter bw = new BufferedWriter(fw);
+			 PrintWriter out = new PrintWriter(bw)) {
+			out.println(java.time.LocalDateTime.now() + " | " + message);
+		} catch (IOException e) {
+			System.err.println("Error writing to log file: " + e.getMessage());
+		}
+	}
 
 	/**
 	 * display the hostname and ip of the coordinator

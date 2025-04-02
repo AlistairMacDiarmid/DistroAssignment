@@ -10,7 +10,7 @@ public class C_receiver extends Thread{
 
     private final C_buffer 	buffer; // shared buffer for request storage
     private final int port; // port to listen for requests
-    private ServerSocket 	serverSocket; //server socket that listesns for connections
+    private ServerSocket 	serverSocket; //server socket that listens for connections
 
 
 	/**
@@ -77,27 +77,4 @@ public class C_receiver extends Thread{
 		connectionThread.start();
 	}
 
-//    public void run () {
-//	// >>> create the socket the server will listen to
-//		try{
-//			s_socket = new ServerSocket(port);
-//			System.out.println("C:receiver - Listening on port " + port);
-//
-//			while (true) {
-//				try{
-//					//get a new connection
-//					socketFromNode = s_socket.accept();
-//					System.out.println("C:receiver - Coordinator has received a request");
-//
-//					//create a separate thread to service the request
-//					connect = new C_Connection_r(socketFromNode, buffer);
-//					connect.start();
-//				}catch(IOException e){
-//					System.out.println("Exception when creating a connection "+e);
-//				}
-//			}//end while
-//		}catch(IOException e){
-//			System.err.println("Error creating server socket: " + e);
-//		}
-//    }//end run
 }
