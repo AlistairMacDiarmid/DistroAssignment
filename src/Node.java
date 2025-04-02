@@ -1,6 +1,7 @@
 import java.net.*;
 import java.io.*;
 import java.util.*;
+import java.util.logging.Logger;
 
 public class Node{
 
@@ -25,9 +26,8 @@ public class Node{
     String 	n_host_name; //hostname of node
     int     n_port; // post the node listens on
 
-	private static final String LOG_FILE = "distro_log.txt";
 
-	
+	private static final Logger logger = LogManager.getLogger();
 
 
 	/**
@@ -38,7 +38,7 @@ public class Node{
 	 */
 	public Node(String nam, int por, int sec){
 		//DEBUG
-		logToFile("NODE " + por + ": STARTING UP");
+		logger.info("NODE " + por + ": STARTING UP");
 
 		ra = new Random();
 		n_host_name = nam;
@@ -80,17 +80,6 @@ public class Node{
         }
 	}
 
-	private synchronized void logToFile(String message) {
-		try (FileWriter fw = new FileWriter(LOG_FILE, true);
-			 BufferedWriter bw = new BufferedWriter(fw);
-			 PrintWriter out = new PrintWriter(bw)) {
-			out.println(java.time.LocalDateTime.now() + " | " + message);
-			out.flush();
-		} catch (IOException e) {
-			System.err.println("Log failed: " + e.getMessage());
-		}
-	}
-
 	/**
 	 * returns the token to the coordinator after finishing the critical section
 	 * @param s socket for communication
@@ -106,7 +95,7 @@ public class Node{
 			pout = new PrintWriter(s.getOutputStream(), true);
 			pout.println("TOKEN_RETURNED"); // notify coordinator the token is returned
 			s.close();
-			logToFile("NODE " + n_port + ": RETURNING token to coordinator");
+			logger.info("NODE " + n_port + ": RETURNING token to coordinator");
 			System.out.println("Node " + n_host + ":" + n_port + " sent token return to coordinator");
 		}catch(IOException e) {
 			System.out.println("Error returning token " + e);
@@ -120,10 +109,10 @@ public class Node{
 	 */
 	public void criticalSection(int sec){
 		System.out.println("Node " + n_host + ":" + n_port + " received token from coordinator");
-		logToFile("NODE " + n_port + ": ENTERING critical section");
+		logger.info("NODE " + n_port + ": ENTERING critical section");
 		System.out.println("Node " + n_port + ": ENTERING critical section");
 		sleep(sec); //simulate critical section work
-		logToFile("NODE " + n_port + ": LEAVING critical section");
+		logger.info("NODE " + n_port + ": LEAVING critical section");
 		System.out.println("Node " + n_port + ": LEAVING critical section");
 	}
 

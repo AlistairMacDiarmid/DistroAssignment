@@ -1,6 +1,11 @@
 import java.io.*;
 import java.net.Socket;
 
+import java.util.logging.Logger;
+import java.util.logging.Level;
+import java.util.logging.FileHandler;
+import java.util.logging.SimpleFormatter;
+
 public class C_Connection_r extends Thread {
 
 	private static final int NODE = 0; //node IP index
@@ -11,8 +16,8 @@ public class C_Connection_r extends Thread {
 	private BufferedReader reader; //buffered reader for reading input
 
 	private static final Object lock = new Object(); // lock object to synchronize thread access
-	private static final String LOG_FILE = "distro_log.txt";
 
+	private static final Logger logger = LogManager.getLogger();
 
 	/**
 	 * constructor to initialise the connection handler
@@ -22,16 +27,7 @@ public class C_Connection_r extends Thread {
 	public C_Connection_r(Socket socket, C_buffer buffer) {
 		this.socket = socket;
 		this.buffer = buffer;
-	}
 
-	private synchronized void logToFile(String message) {
-		try (FileWriter fw = new FileWriter(LOG_FILE, true);
-			 BufferedWriter bw = new BufferedWriter(fw);
-			 PrintWriter out = new PrintWriter(bw)) {
-			out.println(java.time.LocalDateTime.now() + " | " + message);
-		} catch (IOException e) {
-			System.err.println("Logging failed: " + e.getMessage());
-		}
 	}
 
 	/**
@@ -108,9 +104,8 @@ public class C_Connection_r extends Thread {
 	 * @param request the request array
 	 */
 	private void logRequest(String[] request) {
-		String logMsg = "COORDINATOR: Received request from " + request[0] + ":" + request[1] + " | Queue size: " + (buffer.size()/2);
-		logToFile(logMsg);
-		System.out.println("C:connection OUT " + logMsg);
+		String logMsg = "COORDINATOR: Received request from " + request[0] + ":" + request[1] + " | Queue size: " + (buffer.size() / 2);
+		logger.info(logMsg);
 	}
 }
 

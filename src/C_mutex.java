@@ -3,15 +3,17 @@ import java.io.*;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 public class C_mutex extends Thread {
     final C_buffer buffer;
     int returnPort;
     private ServerSocket returnSocket;
-    private static final String LOG_FILE = "distro_log.txt";
 
-    private final Queue<String[]> pendingRequests = new LinkedList<String[]>();
-
+    private static final Logger logger = LogManager.getLogger();
 
     /**
      * Constructor - initalises the mutex process
@@ -23,15 +25,7 @@ public class C_mutex extends Thread {
         returnPort = p;
     }
 
-    private synchronized void logToFile(String message) {
-        try (FileWriter fw = new FileWriter(LOG_FILE, true);
-             BufferedWriter bw = new BufferedWriter(fw);
-             PrintWriter out = new PrintWriter(bw)) {
-            out.println(java.time.LocalDateTime.now() + " | " + message);
-        } catch (IOException e) {
-            System.err.println("Logging failed: " + e.getMessage());
-        }
-    }
+
 
     /**
      * main execution loop for handling mutual exclusion
@@ -87,7 +81,7 @@ public class C_mutex extends Thread {
             BufferedReader in = new BufferedReader(new InputStreamReader(returnConnection.getInputStream()));
             String response = in.readLine();
             if ("TOKEN_RETURNED".equals(response)) {
-                logToFile("COORDINATOR: TOKEN RETURNED by " + nodeHost + ":" + nodePort);
+                logger.info("COORDINATOR: TOKEN RETURNED by " + nodeHost + ":" + nodePort);
                 System.out.println("C:mutex - Token returned by " + nodeHost + ":" + nodePort);
             }
         } catch (IOException e) {
@@ -106,7 +100,7 @@ public class C_mutex extends Thread {
             Socket nodeSocket = new Socket(nodeHost, nodePort);
             PrintWriter out = new PrintWriter(nodeSocket.getOutputStream(), true);
             out.println("TOKEN_GRANTED");
-            logToFile("COORDINATOR: GRANTED token to " + nodeHost + ":" + nodePort);
+            logger.info("COORDINATOR: GRANTED token to " + nodeHost + ":" + nodePort);
             System.out.println("C:mutex - Token granted to " + nodeHost + ":" + nodePort);
         } catch (IOException e) {
             System.err.println("Error granting token to: " + nodeHost + ":" + nodePort);
