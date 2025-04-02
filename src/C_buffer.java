@@ -56,10 +56,7 @@ public class C_buffer {
 		return o;
     }
 
-	@Override
-	public String toString() {
-        return data.toString();
-    }
+
 
 
 }
