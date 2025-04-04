@@ -1,16 +1,25 @@
 import java.io.IOException;
 import java.net.*;
+import java.util.logging.Logger;
 
 /**
- * listens for incoming connection requests from nodes
- * when a request is received, it spawns a new thread (c_connection_r)
- * to habd the request asynchronously
+ * C_receiver listens for incoming connection requests from nodes
+ * when a request in received, it spans a new thread - C_Connection_r
+ * to handle the request asynchronously
  */
 public class C_receiver extends Thread{
 
-    private final C_buffer 	buffer; // shared buffer for request storage
-    private final int port; // port to listen for requests
-    private ServerSocket 	serverSocket; //server socket that listens for connections
+	//shared buffer for storing the incoming requests
+    private final C_buffer 	buffer;
+
+	//port number to listen for incoming requests
+    private final int port;
+
+	//server socket to listen for  connections
+    private ServerSocket serverSocket;
+
+	//logger for logging actions and errors
+	private static final Logger logger = LogManager.getLogger();
 
 
 	/**
@@ -29,8 +38,9 @@ public class C_receiver extends Thread{
 	 * initialises the server socket and continuously listens for connections
 	 */
 	public void run(){
+		//initialise the server socket and listen for connections
 		if(!initialiseServerSocket()){
-			return; //exit if socket init fails
+			return; //exit if socket initialisation fails
 		}
 		acceptConnections(); //listen for client communication
 	}
@@ -41,17 +51,20 @@ public class C_receiver extends Thread{
 	 */
 	private boolean initialiseServerSocket() {
 		try{
+			//initialise the server socket on the specified port
 			serverSocket = new ServerSocket(port);
-			System.out.println("C:receiver - listening on port " + port);
+			logger.info("[COORD] LISTENING: port=" + port);
 			return true;
 		} catch (IOException e) {
-			System.err.println("C:receiver error - failed to create server socket: " + e.getMessage());
+			//log errors that occur when initialisation fails
+			logger.severe("[COORD] SOCKET_ERROR: " + e.getMessage());
 			return false;
 		}
 	}
 
 	/**
-	 * continuously listens for incoming connection and spawns a new thread to handle each request
+	 * continuously listens for incoming connection and spawns a new thread
+	 * to handle each request asynchronously
 	 */
 	private void acceptConnections() {
 		while (true) {
@@ -60,20 +73,25 @@ public class C_receiver extends Thread{
 				Socket clientSocket = serverSocket.accept();
 				System.out.println("C:receiver - Received a request from a node");
 
-				//handle request in a separate thread
+				//handle client requests by spawning a new thread
 				handleClientRequest(clientSocket);
 			} catch (IOException e) {
+				//log any errors that occur while accepting the connection
 				System.err.println("C:receiver ERROR - Exception while accepting connection: " + e.getMessage());
 			}
 		}
 	}
 
 	/**
-	 * handles incoming client request by spawning a new thread
+	 * handles incoming client request by spawning a new thread.
+	 * new thread will handle the request asynchronously
 	 * @param clientSocket the socket connection from a node
 	 */
 	private void handleClientRequest(Socket clientSocket) {
+		//create new connection handler thread to manage the client request
 		C_Connection_r connectionThread = new C_Connection_r(clientSocket, buffer);
+
+		//start the new thread to handle the request
 		connectionThread.start();
 	}
 

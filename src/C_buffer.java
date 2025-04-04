@@ -1,67 +1,86 @@
-import java.util.*;
+import java.util.concurrent.PriorityBlockingQueue;
+import java.util.stream.Collectors;
 
+
+/**
+ * C_buffer class implements a priority queue to manage the requests.
+ * requests are then stored in a PriorityBlockingQueue and are processed based on priority
+ */
 public class C_buffer {
 
-    private Vector<Object> data;
+	//the queue to hold PriorityRequests objects in priority order
+	private final PriorityBlockingQueue<PriorityRequest> queue;
 
+	/**
+     * constructor - initializes the buffer with a PriorityBlockingQueue
+     */
     public C_buffer (){
-    	data = new Vector<Object>();
+		queue = new PriorityBlockingQueue<>();
     }
 
+
+	/**
+	 * returns the current size of the queue
+	 * @return the number of requests in the queue
+	 */
     public int size(){
-    	return data.size();
+    	return queue.size();
     }
 
-    public synchronized void saveRequest (String[] r){
-    	data.add(r[0]); //host
-    	data.add(r[1]); //port
-		notifyAll(); //notify the waiting threads
-    }
-
-	public synchronized String[] getRequest() {
-		while (data.size() < 2) { // Ensure we have both IP and Port before proceeding
-			try {
-				wait(); // Wait for requests to be available
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-				return null;
-			}
-		}
-
-		// Retrieve and remove the request (IP and Port)
-		String[] request = new String[2];
-		request[0] = (String) data.remove(0);  // Get the IP
-		request[1] = (String) data.remove(0);  // Get the Port
-
-		return request;
+	/**
+	 * saves a new request into the queue. The request is created from an array of strings
+	 * the array elements represent the host, port and priority of the request
+	 * @param r the request data as an array of strings - r[0] - host, r[1] - port, r[2] - priority
+	 */
+    public  void saveRequest (String[] r) {
+		//create a new  PriorityRequest and add it to the queue
+		queue.put(new PriorityRequest(
+				r[0],
+				Integer.parseInt(r[1]),
+				Integer.parseInt(r[2])
+		));
 	}
 
-    public void show(){
-		for (int i=0; i<data.size();i++)
-		    System.out.print(" "+data.get(i)+" ");
-		System.out.println(" ");
-    }
-
-    public void add(Object o){
-    	data.add(o);
-    }
-
-    synchronized public Object  get(){
-    	Object o = null;
-
-		if (data.size() > 0){
-		    o = data.get(0);
-		    data.remove(0);
+	/**
+	 *retrieves and removes the highest priority request from the queue
+	 * method blocks when the queue is empty
+	 * @return a string array containing the host, port and priority of the request
+	 * @throws InterruptedException if the current thread is interrupted whilst waiting
+	 */
+	public String[] getRequest() throws InterruptedException{
+		try {
+			//take the highest priority request from the queue
+			PriorityRequest request = queue.take();
+			return new String[]{
+					request.getHost(),
+					String.valueOf(request.getPort()),
+					String.valueOf(request.getPriority())
+			};
+		} catch (InterruptedException e) {
+			//re-interrupt the current thread if interrupted
+			Thread.currentThread().interrupt();
+			return null;
 		}
-		return o;
-    }
+	}
 
-	@Override
-	public String toString() {
-        return "C_buffer [data=" + data + "]";
-    }
-
-
-
+	/**
+	 * returns the current state of the queue as a string
+	 * each request in the queue is represented by its port and priority
+	 * @return a string representation of the queue state, or "EMPTY" if the queue is empty
+	 */
+	public String getQueueState(){
+		//if the queue is empty, return "EMPTY"
+		if(queue.isEmpty()) return "EMPTY";
+		//otherwise, return a comma-separated list of requests in the queue
+		return queue.stream()
+				.map(r -> r.getPort() + "(Priority:" + r.getPriority() + ")")
+				.collect(Collectors.joining(", "));
+	}
 
 }
+
+
+
+
+
+

@@ -1,22 +1,30 @@
 import java.io.*;
 import java.net.Socket;
-
 import java.util.logging.Logger;
-import java.util.logging.Level;
-import java.util.logging.FileHandler;
-import java.util.logging.SimpleFormatter;
+
+/**
+ * C_Connection_r handles the connection from a requesting node.
+ * it will read the request from the socket, save it to a shared buffer, logs the operation and finally closes the connection
+ * class extends Thread to allow each connection to be processed concurrently
+ */
 
 public class C_Connection_r extends Thread {
 
+	//constants for request indices: Node IP, Node Port and Node Priority
 	private static final int NODE = 0; //node IP index
 	private static final int PORT = 1; //node port index
+	private static final int PRIORITY = 2; // priority index
 
-	private final C_buffer buffer; //shared buffer for storing requests
-	private final Socket socket; //socket connected to the requesting node
-	private BufferedReader reader; //buffered reader for reading input
+	//shared buffer for storing requests
+	private final C_buffer buffer;
 
-	private static final Object lock = new Object(); // lock object to synchronize thread access
+	//socket connected to the requesting node
+	private final Socket socket;
 
+	//buffered reader for reading input from the socket
+	private BufferedReader reader;
+
+	//logger for logging actions and errors
 	private static final Logger logger = LogManager.getLogger();
 
 	/**
@@ -32,80 +40,79 @@ public class C_Connection_r extends Thread {
 
 	/**
 	 * main execution method of the thread
-	 * reads a request, saves it, logs it, and closes the connection
+	 * reads a request from the socket, saves it to the buffer, logs the action
+	 * and finally closes the socket connection
 	 */
 	public void run() {
-		System.out.println("C:connection IN  dealing with request from socket " + socket);
+		System.out.println("C:connection IN dealing with request from socket " + socket);
 		try {
-			// Read the request from the socket
+			//read the request from the socket
 			String[] request = readRequest();
 			if (request != null) {
-				// Synchronize access to the shared buffer to preserve FIFO order
-				synchronized (lock) {
-					saveRequest(request);  // Store the request in the buffer
-					logRequest(request);    // Log the received request
-				}
+				//log the state of the queue before adding the new request to the queue
+				logger.info("[COORD] PRE_ADD_QUEUE: Size=" + buffer.size() + " | Current=" + buffer.getQueueState());
+
+				//save the request to the buffer
+				buffer.saveRequest(request);
+
+				//log the new request after adding it to the queue
+				logger.info("[COORD] NEW_REQUEST: " + request[NODE] + ":" + request[PORT] +
+						" Priority: " + request[PRIORITY]);
+				logger.info("[COORD] POST_ADD_QUEUE: Added " + request[PORT] + "(P" + request[PRIORITY] +
+						") | New size=" + buffer.size() + " | Queue=" + buffer.getQueueState());
 			}
 		} catch (IOException e) {
-			System.err.println("C:connection ERROR: " + e.getMessage());
-			e.printStackTrace();
+			//log any errors
+			logger.severe("[COORD] ERROR: " + e.getMessage());
 		} finally {
-			// Close the socket connection after processing
+			//close the connection, even if an error occurred
 			closeConnection();
 		}
-		// Show the current state of the buffer (you can optionally log this as well)
-		buffer.show();
 	}
 
 	/**
-	 * reads the request (node IP and port) from the socket.
-	 * @return a string array containing node IP and nodePort [node IP, node port]
-	 * @throws IOException if there is any issue reading from the socket
+	 * reads the request (node IP, port and priority) from the socket.
+	 * @return a string array containing node IP, nodePort and the priority [node IP, node port, node priority]
+	 * @throws IOException if there are any issue reading from the socket
 	 */
 	private String[] readRequest() throws IOException {
+		//initialise the reader for reading input from the sockets input stream
 		reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-		String[] request = new String[2];
-		request[NODE] = reader.readLine(); // Read node host/ip
-		request[PORT] = reader.readLine(); // Read node port
+		//create an array to store the node IP, port and priority
+		String[] request = new String[3];
+		request[NODE] = reader.readLine();//read node host/IP
+		request[PORT] = reader.readLine(); //read node port
+		request[PRIORITY] = reader.readLine(); //read node priority
 
-		if (request[NODE] == null || request[PORT] == null) {
+		//check if the request data is valid (not null)
+		if (request[NODE] == null || request[PORT] == null || request[PRIORITY] == null) {
 			System.err.println("C:connection ERROR: Invalid request received!");
 			return null;
 		}
 
+		//return the request data as a string array
 		return request;
 	}
 
-	/**
-	 * stores the received request in the shared buffer.
-	 * @param request the request array
-	 */
-	private void saveRequest(String[] request) {
-		buffer.saveRequest(request);
-	}
+
 
 	/**
 	 * closes the socket connection after processing the request.
+	 * ensures that resources are released and the connection is properly terminated
 	 */
 	private void closeConnection() {
 		try {
+			//if the socket is not null, close it
 			if (socket != null) {
 				socket.close();
 				System.out.println("C:connection OUT    socket closed");
 			}
 		} catch (IOException e) {
+			//log error if there is an issue closing socket
 			System.err.println("C:connection ERROR closing socket: " + e.getMessage());
 		}
 	}
 
-	/**
-	 * logs details about the received request.
-	 * @param request the request array
-	 */
-	private void logRequest(String[] request) {
-		String logMsg = "COORDINATOR: Received request from " + request[0] + ":" + request[1] + " | Queue size: " + (buffer.size() / 2);
-		logger.info(logMsg);
-	}
 }
 

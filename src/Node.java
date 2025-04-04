@@ -26,8 +26,11 @@ public class Node{
     String 	n_host_name; //hostname of node
     int     n_port; // post the node listens on
 
-
+	//logger
 	private static final Logger logger = LogManager.getLogger();
+
+	//priority
+	private final int priority;
 
 
 	/**
@@ -36,13 +39,15 @@ public class Node{
 	 * @param por the port on which the node listens
 	 * @param sec the wait time in milliseconds before making a request
 	 */
-	public Node(String nam, int por, int sec){
+	public Node(String nam, int por, int sec, int priority) throws InterruptedException {
 		//DEBUG
 		logger.info("NODE " + por + ": STARTING UP");
 
 		ra = new Random();
 		n_host_name = nam;
 		n_port = por;
+		this.priority = priority;
+
 
 		System.out.println("Node " + n_host + ":" + n_port + " of DME is active ....");
 
@@ -74,7 +79,7 @@ public class Node{
             //return the token to the coordinator after execution
             returnToken(s, c_host, c_return_port, pout, n_host, n_port);
 
-			sleep(3);
+			sleep(sec);
 
 
         }
@@ -95,7 +100,7 @@ public class Node{
 			pout = new PrintWriter(s.getOutputStream(), true);
 			pout.println("TOKEN_RETURNED"); // notify coordinator the token is returned
 			s.close();
-			logger.info("NODE " + n_port + ": RETURNING token to coordinator");
+			logger.info("[NODE " + n_port + "] TOKEN_RETURNED");
 			System.out.println("Node " + n_host + ":" + n_port + " sent token return to coordinator");
 		}catch(IOException e) {
 			System.out.println("Error returning token " + e);
@@ -107,12 +112,13 @@ public class Node{
 	 * simulates execution inside the critical section
 	 * @param sec duration to stay inside the critical section
 	 */
-	public void criticalSection(int sec){
+	public void criticalSection(int sec) throws InterruptedException {
 		System.out.println("Node " + n_host + ":" + n_port + " received token from coordinator");
-		logger.info("NODE " + n_port + ": ENTERING critical section");
+		logger.info("[NODE " + n_port + "] CS_ENTER");
 		System.out.println("Node " + n_port + ": ENTERING critical section");
-		sleep(sec); //simulate critical section work
-		logger.info("NODE " + n_port + ": LEAVING critical section");
+		//sleep(sec);
+		Thread.sleep(5000);
+		logger.info("[NODE " + n_port + "] CS_EXIT");
 		System.out.println("Node " + n_port + ": LEAVING critical section");
 	}
 
@@ -143,14 +149,15 @@ public class Node{
 	 * @param n_host node's host address
 	 * @param n_port node's port number
 	 */
-	public void sendRequest(String c_host, int c_request_port, String n_host, int n_port) {
+	public void sendRequest(String c_host, int c_request_port, String n_host, int n_port ) {
 		try{
 			Socket s = new Socket(c_host, c_request_port);
 			PrintWriter pout = new PrintWriter(s.getOutputStream(), true);
 			pout.println(n_host);  // Send node IP
 			pout.println(n_port);  // Send node Port
+			pout.println(priority);
 			s.close();
-			System.out.println("Node " + n_port + " sent request to coordinator");
+			logger.info("[NODE " + n_port + "] REQUEST_SENT (Priority:" + priority + ")");
 		}catch(IOException e){
 			System.err.println("Error sending request: " + e);
 		}
@@ -163,7 +170,7 @@ public class Node{
 	 */
 	public void sleep(int sec){
         try {
-            Thread.sleep(ra.nextInt(sec)*1000L);
+            Thread.sleep((ra.nextInt(sec) + 1 )*1000L); //minimum 1 second sleep
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -174,18 +181,18 @@ public class Node{
 	 * main method - initalises a node based on command-line arguments
 	 * @param args command-line arguments: [port number] [max wait time]
 	 */
-    public static void main (String args[]){
-		String n_host_name = ""; 
+    public static void main (String args[]) throws InterruptedException {
+		String n_host_name = "";
 		int n_port;
-		
+
 		// validate the number of command-line arguments
-		if ((args.length < 1) || (args.length > 2)){
-		    System.out.print("Usage: Node [port number] [seconds]");
+		if ((args.length < 1) || (args.length > 3)){
+		    System.out.print("Usage: Node [port number] [seconds] [priority]");
 		    System.exit(1);
 		}
-		
+
 		// get the hostname of the node
-	 	try{ 
+	 	try{
 		    InetAddress n_inet_address =  InetAddress.getLocalHost() ;
 		    n_host_name = n_inet_address.getHostName();
 		    System.out.println ("node hostname is " +n_host_name+":"+n_inet_address);
@@ -200,8 +207,9 @@ public class Node{
 		System.out.println ("node port is "+n_port);
 
 		//initalise the node with given parameters
-	    Node n = new Node(n_host_name, n_port, Integer.parseInt(args[1]));
+		int priority = Integer.parseInt(args[2]);
+		Node n = new Node(n_host_name, n_port, Integer.parseInt(args[1]), priority);
     }
-    
-    
+
+
 }

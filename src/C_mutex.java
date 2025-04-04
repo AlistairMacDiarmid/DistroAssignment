@@ -8,15 +8,27 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
+
+/**
+ * C_mutex handles the mutual exclusion for the coordination process
+ * it grants tokens to requesting nodes and waits for token returns.
+ * this class runs in a separate thread to continuously process incoming requests and manage the token granting and returning process
+ */
 public class C_mutex extends Thread {
+    //shared buffer to store requests
     final C_buffer buffer;
+
+    //port for received tokens from the node
     int returnPort;
+
+    //server socket to listen for token return connections
     private ServerSocket returnSocket;
 
+    //logger to log actions and errors
     private static final Logger logger = LogManager.getLogger();
 
     /**
-     * Constructor - initalises the mutex process
+     * Constructor - initialises the mutex process
      * @param b the shared buffer for storing requests
      * @param p the port for receiving token returns
      */
@@ -29,19 +41,24 @@ public class C_mutex extends Thread {
 
     /**
      * main execution loop for handling mutual exclusion
+     * continuously process requests and grants tokens to nodes
      */
     public void run(){
         try{
+            //initialise the server socket for receiving token returns
             initialiseServerSocket();
+
+            //process incoming requests and manage token granting and returning process
             processRequests();
         }catch(Exception e){
+            //log any errors that occur
             System.err.println("C:Mutex error: " + e.getMessage());
         }
     }
 
     /**
-     * initialises the server socket for receiving token returns
-     * @throws IOException if an I/O error occurs
+     * initialises the server socket to listen for token returns on the given port
+     * @throws IOException if there are any issues initialising the server socket
      */
     private void initialiseServerSocket() throws IOException {
         returnSocket = new ServerSocket(returnPort);
@@ -49,86 +66,82 @@ public class C_mutex extends Thread {
     }
 
     /**
-     * continuously process incoming requests and grants tokens
-     * @throws IOException if I/O error occurs
+     * continuously process incoming requests from the shared buffer and grants tokens to nodes
+     * after granting the token, wait for the token to be returned from the node
+     * @throws IOException if there is an I/O error during the request processing
+     * throws InterruptedException if the thread is interrupted while waiting
      */
-    private void processRequests() throws IOException, InterruptedException {
+    private void processRequests() throws IOException, InterruptedException  {
         while (true) {
-            String[] request;
-            synchronized (buffer) {
-                // Wait until at least one full request exists
-                while (buffer.size() < 2) {
-                    buffer.wait();  // Releases lock and waits
-                }
-                request = buffer.getRequest();
-            }  // Lock released here
+            try{
+                //get request from the buffer
+                String[] request = buffer.getRequest();
 
-            if (isValidRequest(request)) {
-                grantToken(request[0], Integer.parseInt(request[1]));
+                //grant token to the requesting node
+                grantToken(request[0], Integer.parseInt(request[1]), Integer.parseInt(request[2]));
+
+                //wait for the token to be returned from the node
                 waitForReturnToken(request[0], Integer.parseInt(request[1]));
+            }catch (InterruptedException e){
+                //handle thread interruption and exit loop
+                Thread.currentThread().interrupt();
+                break;
             }
         }
     }
 
     /**
-     * waits fot the token to be returned by the node
+     * waits fot the token to be returned by the node after it has been granted
      * @param nodeHost the host of the returning node
      * @param nodePort the port of the returning node
      */
     private void waitForReturnToken(String nodeHost, int nodePort) {
         try {
+            //accept the return connection from the node
             Socket returnConnection = returnSocket.accept();
             BufferedReader in = new BufferedReader(new InputStreamReader(returnConnection.getInputStream()));
+
+           //read the response from the node
             String response = in.readLine();
+
+            //if the response indicates a token was returned, log and print success.
             if ("TOKEN_RETURNED".equals(response)) {
-                logger.info("COORDINATOR: TOKEN RETURNED by " + nodeHost + ":" + nodePort);
-                System.out.println("C:mutex - Token returned by " + nodeHost + ":" + nodePort);
+                logger.info("[COORD] TOKEN_RETURNED: " + nodeHost + ":" + nodePort
+                        + " | QUEUE: " + buffer.getQueueState());                System.out.println("C:mutex - Token returned by " + nodeHost + ":" + nodePort);
             }
         } catch (IOException e) {
-            System.err.println("C:mutex ERROR: Failed to receive token return - " + e.getMessage());
-        }
+            //log any errors that occur while waiting for the token return
+            logger.severe("[COORD] TOKEN_RETURN_ERROR: " + nodeHost + ":" + nodePort
+                    + " | " + e.getMessage());        }
     }
 
 
     /**
-     * grants the token to the requesting node
+     * grant the token to the requesting node
      * @param nodeHost the host of the requesting node
-     * @param nodePort the port of the requesting node.
+     * @param nodePort the port of the requesting node
+     * @param priority the priority of the requesting node
      */
-    private void grantToken(String nodeHost, int nodePort) {
+    private void grantToken(String nodeHost, int nodePort, int priority) {
         try {
+            //establish a connection to the requesting node
             Socket nodeSocket = new Socket(nodeHost, nodePort);
             PrintWriter out = new PrintWriter(nodeSocket.getOutputStream(), true);
+
+            //send the token grant message to the node
             out.println("TOKEN_GRANTED");
-            logger.info("COORDINATOR: GRANTED token to " + nodeHost + ":" + nodePort);
+
+            //log and print the token granting action
+            logger.info("[COORD] TOKEN_GRANTED: " + nodeHost + ":" + nodePort
+            + " (Priority " + priority
+            + ") | QUEUE: " + buffer.getQueueState());
             System.out.println("C:mutex - Token granted to " + nodeHost + ":" + nodePort);
         } catch (IOException e) {
-            System.err.println("Error granting token to: " + nodeHost + ":" + nodePort);
-
+            //log any errors that occur while granting the token
+            logger.severe("[COORD] TOKEN_GRANT_ERROR: " + nodeHost + ":" + nodePort
+                    + " | " + e.getMessage());
         }
     }
 
-    /**
-     * wait until the buffer has a valid request
-     */
-    private void waitForRequests() {
-        while(buffer.size()<2){
-            try{
-                System.out.println("C:mutex - waiting for requests\nBuffer size: " + buffer.size());
-                buffer.wait();
-            } catch (InterruptedException e) {
-                System.err.println("C:mutex error: Interrupted while waiting for requests: " + e.getMessage());
-            }
-        }
-        System.out.println("C:mutex - Buffer contents before fetching request: " + buffer);
-    }
 
-    /**
-     * checks if the request is valid
-     * @param request the request array containing the node host and port
-     * @return TRUE if valid, FALSE otherwise
-     */
-    private boolean isValidRequest(String[] request) {
-        return request!=null && request.length==2;
-    }
 }
