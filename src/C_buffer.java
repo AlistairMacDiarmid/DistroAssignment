@@ -1,4 +1,5 @@
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 
@@ -10,6 +11,8 @@ public class C_buffer {
 
 	//the queue to hold PriorityRequests objects in priority order
 	private final PriorityBlockingQueue<PriorityRequest> queue;
+
+	private static final Logger logger = LogManager.getLogger();
 
 	/**
      * constructor - initializes the buffer with a PriorityBlockingQueue
@@ -51,6 +54,13 @@ public class C_buffer {
 		try {
 			//take the highest priority request from the queue
 			PriorityRequest request = queue.take();
+
+			long waitTime = System.currentTimeMillis() - request.getTimestamp();
+			if (waitTime > PriorityRequest.STARVATION_THRESHOLD) {
+				logger.info("[COORD] STARVATION_PREVENTION: Prioritizing node " +
+						request.getPort() + " after " + (waitTime/1000) + "s wait");
+			}
+
 			return new String[]{
 					request.getHost(),
 					String.valueOf(request.getPort()),
@@ -68,12 +78,15 @@ public class C_buffer {
 	 * each request in the queue is represented by its port and priority
 	 * @return a string representation of the queue state, or "EMPTY" if the queue is empty
 	 */
-	public String getQueueState(){
-		//if the queue is empty, return "EMPTY"
-		if(queue.isEmpty()) return "EMPTY";
-		//otherwise, return a comma-separated list of requests in the queue
+	public String getQueueState() {
+		if (queue.isEmpty()) return "EMPTY";
+		long currentTime = System.currentTimeMillis();
 		return queue.stream()
-				.map(r -> r.getPort() + "(Priority:" + r.getPriority() + ")")
+				.map(r -> {
+					boolean starved = (currentTime - r.getTimestamp()) > PriorityRequest.STARVATION_THRESHOLD;
+					return r.getPort() + "(P:" + r.getPriority() +
+							(starved ? "⭐" : "") + ")"; // Star symbol for starved requests
+				})
 				.collect(Collectors.joining(", "));
 	}
 

@@ -18,6 +18,8 @@ public class PriorityRequest implements Comparable<PriorityRequest> {
     private final int priority; //priority of the request - higher value = higher priority
     private final long timestamp; //timestamp of when the request was created
 
+    //starvation threshold constant
+    public static final int STARVATION_THRESHOLD = 5000; //5 seconds threshold
     /**
      * Constructor - initializes a new PriorityRequest
      * @param host the host (IP address or hostname) of the requesting node
@@ -40,16 +42,20 @@ public class PriorityRequest implements Comparable<PriorityRequest> {
      */
     @Override
     public int compareTo(PriorityRequest other) {
-        //compare priority levels (higher priority comes first)
-        int priorityCompare = Integer.compare(other.priority, this.priority);
+        long currentTime = System.currentTimeMillis();
+        boolean thisStarved = (currentTime - this.timestamp) > STARVATION_THRESHOLD;
+        boolean otherStarved = (currentTime - other.timestamp) > STARVATION_THRESHOLD;
 
-        //if the priorities are different, return the result of the priority comparison.
-        if(priorityCompare != 0){
-            return priorityCompare;
-        }else{
-            //if the priorities are the same, compare timestamps - earlier requests come first.
-            return Long.compare(this.timestamp, other.timestamp);
-        }
+        // If one is starved and other isn't, starved one gets priority
+        if (thisStarved && !otherStarved) return -1;
+        if (!thisStarved && otherStarved) return 1;
+
+        // Otherwise use normal priority comparison
+        int priorityCompare = Integer.compare(this.priority, other.priority);
+        if (priorityCompare != 0) return priorityCompare;
+
+        // For same priority, older request first
+        return Long.compare(this.timestamp, other.timestamp);
     }
 
     /**
@@ -74,5 +80,13 @@ public class PriorityRequest implements Comparable<PriorityRequest> {
      */
     public int getPriority() {
         return priority;
+    }
+
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    public static long getStarvationThreshold(){
+        return STARVATION_THRESHOLD;
     }
 }
