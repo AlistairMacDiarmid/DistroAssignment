@@ -3,12 +3,20 @@ import java.io.*;
 import java.util.*;
 import java.util.logging.Logger;
 
+
+/**
+ * Node class represents a participant in the Distributed Mutual Exclusion system
+ * each node can request access to a critical section, wait for a token from the coordinator,
+ * enter the critical section and return the token after execution
+ *
+ * Node communicates with the coordinator over sockets, sending requests and receiving tokens based on a priority system
+ */
 public class Node{
 
-	//random object for genertaing random sleep times
+	//random object for generting random sleep times
     private Random ra;
 
-	//socket and printwriter for communication
+	//socket and print writer for communication
     private Socket	s;
     private PrintWriter pout = null;
 
@@ -17,7 +25,7 @@ public class Node{
     private Socket	n_token;
 
 	//coordinator host and ports
-    String	c_host = "127.0.0.1";
+    String	c_host = "127.0.0.1"; //coordinator IP
     int 	c_request_port = 7001; //port for sending token requests
     int 	c_return_port = 7002; //port for receiving token requests
 
@@ -26,10 +34,10 @@ public class Node{
     String 	n_host_name; //hostname of node
     int     n_port; // post the node listens on
 
-	//logger
+	//logger instance
 	private static final Logger logger = LogManager.getLogger();
 
-	//priority
+	//priority level of the node
 	private final int priority;
 
 
@@ -38,16 +46,15 @@ public class Node{
 	 * @param nam the host name of the node
 	 * @param por the port on which the node listens
 	 * @param sec the wait time in milliseconds before making a request
+	 * @param priority the priority of the node in the DME system
 	 */
 	public Node(String nam, int por, int sec, int priority) throws InterruptedException {
-		//DEBUG
 		logger.info("NODE " + por + ": STARTING UP");
 
 		ra = new Random();
 		n_host_name = nam;
 		n_port = por;
 		this.priority = priority;
-
 
 		System.out.println("Node " + n_host + ":" + n_port + " of DME is active ....");
 
@@ -63,7 +70,7 @@ public class Node{
 
 		sleep(sec);
 
-		//infinite loop for distributed mutual exclusion execution
+		//infinite loop for DME execution
 		while(true){
 
 			sleep(sec);
@@ -80,8 +87,6 @@ public class Node{
             returnToken(s, c_host, c_return_port, pout, n_host, n_port);
 
 			sleep(sec);
-
-
         }
 	}
 
@@ -138,8 +143,6 @@ public class Node{
 		}catch(IOException e){
 			System.err.println("Error waiting for token: " + e);
 		}
-
-
 	}
 
 	/**
@@ -153,9 +156,9 @@ public class Node{
 		try{
 			Socket s = new Socket(c_host, c_request_port);
 			PrintWriter pout = new PrintWriter(s.getOutputStream(), true);
-			pout.println(n_host);  // Send node IP
-			pout.println(n_port);  // Send node Port
-			pout.println(priority);
+			pout.println(n_host);  //send node IP
+			pout.println(n_port);  //send node Port
+			pout.println(priority); //send node priority
 			s.close();
 			logger.info("[NODE " + n_port + "] REQUEST_SENT (Priority:" + priority + ")");
 		}catch(IOException e){
@@ -166,11 +169,11 @@ public class Node{
 
 	/**
 	 * makes the node sleep for a random amount of time up to a specified limit
-	 * @param sec maxmimum sleep time
+	 * @param sec maximum sleep time
 	 */
 	public void sleep(int sec){
         try {
-            Thread.sleep((ra.nextInt(sec) + 1 )*1000L); //minimum 1 second sleep
+            Thread.sleep((ra.nextInt(sec) + 1 )*1000L); //minimum 1-second sleep
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -178,8 +181,8 @@ public class Node{
     }
 
 	/**
-	 * main method - initalises a node based on command-line arguments
-	 * @param args command-line arguments: [port number] [max wait time]
+	 * main method - initialises a node based on command-line arguments
+	 * @param args command-line arguments: [port number] [max wait time] [priority]
 	 */
     public static void main (String args[]) throws InterruptedException {
 		String n_host_name = "";
@@ -202,12 +205,12 @@ public class Node{
 		    System.exit(1);
 	    	}
 
-		//parse the port number from arguments
+		//parse the command-line arguments
 		n_port = Integer.parseInt(args[0]);
 		System.out.println ("node port is "+n_port);
-
-		//initalise the node with given parameters
 		int priority = Integer.parseInt(args[2]);
+
+		//initialise the node
 		Node n = new Node(n_host_name, n_port, Integer.parseInt(args[1]), priority);
     }
 

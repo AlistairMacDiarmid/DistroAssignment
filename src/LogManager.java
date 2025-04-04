@@ -102,7 +102,7 @@ public class LogManager {
     }
 
     /**
-     * clears the log file, removing all previous logs.
+     * clears the log file, removing all prior logs.
      * ensures the log file is cleared in a thread-safe manner.
      */
     public static void clearLogs() {
