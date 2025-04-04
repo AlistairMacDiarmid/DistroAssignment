@@ -1,5 +1,5 @@
-[2025-04-04 16:55:26] [COORD] STARTED: port=7001
-[2025-04-04 16:55:26] [COORD] HOST_INFO: addr=192.168.1.119, name=Alistairs-MBP.ultrahub
-[2025-04-04 16:55:26] [COORD] LISTENING: port=7001
-[2025-04-04 16:55:29] Runtime.exit() called with status: 129
-[2025-04-04 16:55:29] Runtime.exit() called with status: 129
+[2025-04-04 21:26:31] [COORD] STARTED: port=7001
+[2025-04-04 21:26:31] [COORD] HOST_INFO: addr=192.168.1.95, name=MacBookPro.broadband
+[2025-04-04 21:26:31] [COORD] LISTENING: port=7001
+[2025-04-04 21:26:33] Runtime.exit() called with status: 129
+[2025-04-04 21:26:33] Runtime.exit() called with status: 129

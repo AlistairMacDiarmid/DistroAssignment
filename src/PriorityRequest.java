@@ -15,7 +15,7 @@ public class PriorityRequest implements Comparable<PriorityRequest> {
 
     private final String host; //IP address or hostname of the requesting node
     private final int port; //port of the requesting node
-    private final int priority; //priority of the request - higher value = higher priority
+    private final int priority; //priority of the request - the lower the value the higher the priority
     private final long timestamp; //timestamp of when the request was created
 
     //starvation threshold constant
@@ -24,7 +24,7 @@ public class PriorityRequest implements Comparable<PriorityRequest> {
      * Constructor - initializes a new PriorityRequest
      * @param host the host (IP address or hostname) of the requesting node
      * @param port the port of the requesting node
-     * @param priority the priority of the request - higher value = higher priority
+     * @param priority the priority of the request - the lower the value the higher the priority
      */
     public PriorityRequest(String host, int port, int priority) {
         this.host = host;
@@ -82,10 +82,18 @@ public class PriorityRequest implements Comparable<PriorityRequest> {
         return priority;
     }
 
+    /**
+     * retrieves the timestamp of the request
+     * @return the timestamp of the request
+     */
     public long getTimestamp() {
         return timestamp;
     }
 
+    /**
+     * retrieves the starvation threshold - 5seconds
+     * @return the starvation threshold
+     */
     public static long getStarvationThreshold(){
         return STARVATION_THRESHOLD;
     }
